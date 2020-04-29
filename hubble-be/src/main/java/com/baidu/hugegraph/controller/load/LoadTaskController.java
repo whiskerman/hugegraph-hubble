@@ -19,6 +19,9 @@
 
 package com.baidu.hugegraph.controller.load;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -76,6 +79,12 @@ public class LoadTaskController extends BaseController {
         return this.service.list(connId, pageNo, pageSize);
     }
 
+    @GetMapping("ids")
+    public List<LoadTask> list(@PathVariable("connId") int connId,
+                               @RequestParam("task_ids") List<Integer> taskIds) {
+        return this.service.list(connId, taskIds);
+    }
+
     @GetMapping("{id}")
     public LoadTask get(@PathVariable("id") int id) {
         LoadTask task = this.service.get(id);
@@ -87,7 +96,7 @@ public class LoadTaskController extends BaseController {
 
     @PostMapping
     public LoadTask create(@PathVariable("connId") int connId,
-                               @RequestBody LoadTask entity) {
+                           @RequestBody LoadTask entity) {
         synchronized(this.service) {
             Ex.check(this.service.count() < LIMIT,
                      "load.task.reached-limit", LIMIT);
@@ -111,18 +120,38 @@ public class LoadTaskController extends BaseController {
         }
     }
 
+//    @PostMapping("start")
+//    public LoadTask start(@PathVariable("connId") int connId,
+//                          @RequestParam("file_mapping_id") int fileId) {
+//        GraphConnection connection = this.connService.get(connId);
+//        if (connection == null) {
+//            throw new ExternalException("graph-connection.not-exist.id", connId);
+//        }
+//        FileMapping fileMapping = this.fmService.get(fileId);
+//        if (fileMapping == null) {
+//            throw new ExternalException("file-mapping.not-exist.id", fileId);
+//        }
+//        return this.service.start(connection, fileMapping);
+//    }
+
     @PostMapping("start")
-    public LoadTask start(@PathVariable("connId") int connId,
-                          @RequestParam("file_mapping_id") int fileId) {
+    public List<LoadTask> start(@PathVariable("connId") int connId,
+                                @RequestParam("file_mapping_ids")
+                                List<Integer> fileIds) {
         GraphConnection connection = this.connService.get(connId);
         if (connection == null) {
             throw new ExternalException("graph-connection.not-exist.id", connId);
         }
-        FileMapping fileMapping = this.fmService.get(fileId);
-        if (fileMapping == null) {
-            throw new ExternalException("file-mapping.not-exist.id", fileId);
+
+        List<LoadTask> tasks = new ArrayList<>();
+        for (Integer fileId: fileIds) {
+            FileMapping fileMapping = this.fmService.get(fileId);
+            if (fileMapping == null) {
+                throw new ExternalException("file-mapping.not-exist.id", fileId);
+            }
+            tasks.add(this.service.start(connection, fileMapping));
         }
-        return this.service.start(connection, fileMapping);
+        return tasks;
     }
 
     @PostMapping("pause")

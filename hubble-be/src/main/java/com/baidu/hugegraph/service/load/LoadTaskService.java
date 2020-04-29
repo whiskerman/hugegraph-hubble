@@ -104,8 +104,13 @@ public class LoadTaskService {
     public IPage<LoadTask> list(int connId, int pageNo, int pageSize) {
         QueryWrapper<LoadTask> query = Wrappers.query();
         query.eq("conn_id", connId);
+        query.orderByDesc("create_time");
         Page<LoadTask> page = new Page<>(pageNo, pageSize);
         return this.mapper.selectPage(page, query);
+    }
+
+    public List<LoadTask> list(int connId, List<Integer> taskIds) {
+        return this.mapper.selectBatchIds(taskIds);
     }
 
     public int count() {
@@ -343,7 +348,7 @@ public class LoadTaskService {
         for (VertexMapping mapping : fileMapping.getVertexMappings()) {
             VertexLabelEntity vl = this.vlService.get(mapping.getLabel(), connId);
             List<String> idFields = mapping.getIdFields();
-            Map<String, String> fieldMappings = mapping.filedMappingToMap();
+            Map<String, String> fieldMappings = mapping.fieldMappingToMap();
             com.baidu.hugegraph.loader.mapping.VertexMapping vMapping;
             if (vl.getIdStrategy().isCustomize()) {
                 Ex.check(idFields.size() == 1,
@@ -399,7 +404,7 @@ public class LoadTaskService {
                                                        connId);
             VertexLabelEntity tvl = this.vlService.get(el.getTargetLabel(),
                                                        connId);
-            Map<String, String> fieldMappings = mapping.filedMappingToMap();
+            Map<String, String> fieldMappings = mapping.fieldMappingToMap();
             if (svl.getIdStrategy().isPrimaryKey()) {
                 List<String> primaryKeys = svl.getPrimaryKeys();
                 Ex.check(sourceFields.size() >= 1 &&

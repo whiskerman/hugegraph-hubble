@@ -48,6 +48,7 @@ import com.baidu.hugegraph.options.HubbleOptions;
 import com.baidu.hugegraph.service.load.FileMappingService;
 import com.baidu.hugegraph.util.Ex;
 import com.baidu.hugegraph.util.FileUtil;
+import com.baidu.hugegraph.util.HubbleUtil;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -90,6 +91,8 @@ public class FileUploadController {
             // Read column names and values then fill it
             this.service.extractColumns(mapping);
             mapping.setTotalLines(FileUtil.countLines(mapping.getPath()));
+            mapping.setTotalSize(FileUtils.sizeOf(new File(mapping.getPath())));
+            mapping.setCreateTime(HubbleUtil.nowDate());
             // Will generate mapping id
             if (this.service.save(mapping) != 1) {
                 throw new InternalException("entity.insert.failed", mapping);
@@ -141,8 +144,26 @@ public class FileUploadController {
         Ex.check(formatWhiteList.contains(format),
                  "load.upload.file.format.unsupported");
 
+        long fileSize = file.getSize();
+        long singleFileSizeLimit = this.config.get(
+                                   HubbleOptions.UPLOAD_SINGLE_FILE_SIZE_LIMIT);
+        Ex.check(fileSize <= singleFileSizeLimit,
+                 "load.upload.file.exceed-single-size",
+                 FileUtils.byteCountToDisplaySize(singleFileSizeLimit));
+
+        // Check is there a file with the same name
         FileMapping oldMapping = this.service.get(connId, fileName);
         Ex.check(oldMapping == null, "load.upload.file.existed", fileName);
+
+        long totalFileSizeLimit = this.config.get(
+                                  HubbleOptions.UPLOAD_TOTAL_FILE_SIZE_LIMIT);
+        List<FileMapping> fileMappings = this.service.listAll();
+        long currentTotalSize = fileMappings.stream()
+                                            .map(FileMapping::getTotalSize)
+                                            .reduce(0L, (Long::sum));
+        Ex.check(fileSize + currentTotalSize <= totalFileSizeLimit,
+                 "load.upload.file.exceed-single-size",
+                 FileUtils.byteCountToDisplaySize(totalFileSizeLimit));
     }
 
     private void ensureLocationExist(String location, String connPath) {
